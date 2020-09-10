@@ -5,19 +5,23 @@ import org.spongepowered.asm.mixin.Overwrite;
 
 import com.terraformersmc.smolder.world.SmolderBiomeSource;
 
+import net.minecraft.util.registry.Registry;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
-import net.minecraft.world.gen.chunk.ChunkGeneratorType;
-import net.minecraft.world.gen.chunk.SurfaceChunkGenerator;
+import net.minecraft.world.gen.chunk.ChunkGeneratorSettings;
+import net.minecraft.world.gen.chunk.NoiseChunkGenerator;
 
 @Mixin(DimensionType.class)
 public class MixinDimensionType {
 	/**
 	 * @reason Use Smolder's biome source
-	 * @author SuperCoder79
+	 * @author SuperCoder79 + paulevs
 	 */
 	@Overwrite
-	private static ChunkGenerator createNetherGenerator(long seed) {
-		return new SurfaceChunkGenerator(new SmolderBiomeSource(seed), seed, ChunkGeneratorType.Preset.NETHER.getChunkGeneratorType());
+	private static ChunkGenerator createNetherGenerator(Registry<Biome> biomeRegistry, Registry<ChunkGeneratorSettings> chunkGeneratorSettingsRegistry, long seed) {
+		return new NoiseChunkGenerator(new SmolderBiomeSource(biomeRegistry, seed), seed, () -> {
+			return (ChunkGeneratorSettings) chunkGeneratorSettingsRegistry.getOrThrow(ChunkGeneratorSettings.NETHER);
+		});
 	}
 }

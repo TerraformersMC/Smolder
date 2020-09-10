@@ -5,25 +5,27 @@ import com.terraformersmc.smolder.config.Config;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.biome.Biome;
 
-public class SmolderBiome extends Biome {
+public class SmolderBiome {
 	private static int globalID = 0;
 	
 	private final float size;
 	private float weight;
 	private final int id;
+	private final Biome biome;
+	private Identifier mcID;
 	
-	public SmolderBiome(Identifier id, SmolderBiomeSettings settings) {
-		super(settings);
+	public SmolderBiome(Identifier id, BiomeDefinition def) {
+		String group = String.format("biome.%s.%s", id.getNamespace(), id.getPath());
 		
 		this.id = globalID++;
-		
-		String group = String.format("biome.%s.%s", id.getNamespace(), id.getPath());
-		this.size = Config.getFloat(group, "size", settings.getSize());
-		this.weight = Config.getFloat(group, "weight", settings.getWeight());
+		this.size = Config.getFloat(group, "size", def.getSize());
+		this.weight = Config.getFloat(group, "weight", def.getWeight());
+		this.biome = def.build();
+		this.mcID = id;
 	}
 	
 	public Biome getBiome() {
-		return this;
+		return biome;
 	}
 
 	public float getSize() {
@@ -48,5 +50,9 @@ public class SmolderBiome extends Biome {
 	public boolean equals(Object obj) {
 		SmolderBiome biome = (SmolderBiome) obj;
 		return biome == null ? false : biome.id == id;
+	}
+
+	public Identifier getID() {
+		return mcID;
 	}
 }

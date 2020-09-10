@@ -3,22 +3,26 @@ package com.terraformersmc.smolder.api;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.terraformersmc.smolder.biome.BiomeDefinition;
 import com.terraformersmc.smolder.biome.SmolderBiome;
-import com.terraformersmc.smolder.biome.SmolderBiomeSettings;
 import com.terraformersmc.smolder.config.Config;
 
 import net.minecraft.util.Identifier;
+import net.minecraft.util.registry.BuiltinRegistries;
 import net.minecraft.util.registry.Registry;
+import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.Biomes;
 
 public final class SmolderBiomeRegistry {
+	private static final Map<RegistryKey<Biome>, SmolderBiome> LINKS = Maps.newHashMap();
+	private static final Map<SmolderBiome, RegistryKey<Biome>> KEYS = Maps.newHashMap();
 	private static final Set<SmolderBiome> BIOMES = Sets.newHashSet();
 	private static final Map<SmolderBiome, SmolderBiome> EDGES = Maps.newHashMap();
 	private static final Map<SmolderBiome, List<SmolderBiome>> SUBBIOMES = Maps.newHashMap();
@@ -28,28 +32,42 @@ public final class SmolderBiomeRegistry {
 	private static float weight = 0;
 	
 	// Constants for Vanilla biomes //
-	public static final SmolderBiome NETHER_WASTES_BIOME = registerBiome(Biomes.NETHER_WASTES);
-	public static final SmolderBiome CRIMSON_FOREST_BIOME = registerBiome(Biomes.CRIMSON_FOREST);
-	public static final SmolderBiome WARPED_FOREST_BIOME = registerBiome(Biomes.WARPED_FOREST);
-	public static final SmolderBiome SOUL_SAND_VALLEY_BIOME = registerBiome(Biomes.SOUL_SAND_VALLEY);
-	public static final SmolderBiome BASALT_DELTAS_BIOME = registerBiome(Biomes.BASALT_DELTAS);
+	public static final SmolderBiome NETHER_WASTES_BIOME = registerBiome(new Identifier("nether_wastes"));
+	public static final SmolderBiome CRIMSON_FOREST_BIOME = registerBiome(new Identifier("crimson_forest"));
+	public static final SmolderBiome WARPED_FOREST_BIOME = registerBiome(new Identifier("warped_forest"));
+	public static final SmolderBiome SOUL_SAND_VALLEY_BIOME = registerBiome(new Identifier("soul_sand_valley"));
+	public static final SmolderBiome BASALT_DELTAS_BIOME = registerBiome(new Identifier("basalt_deltas"));
+	public static Identifier lastID = new Identifier("");
+	
+	/**
+	 * Used to put non-smolder biomes to registry. Puts them into wrappers with default values;
+	 * @param biome - a {@link Biome} to register.
+	 */
+	public static SmolderBiome registerBiome(Identifier biomeID) {
+		Biome biome = BuiltinRegistries.BIOME.get(biomeID);
+		return registerBiome(new SmolderWrappedBiome(biome));
+	}
 	
 	/**
 	 * Used to put non-smolder biomes to registry. Puts them into wrappers with default values;
 	 * @param biome - a {@link Biome} to register.
 	 */
 	public static SmolderBiome registerBiome(Biome biome) {
-		Identifier id = Registry.BIOME.getId(biome);
-		return registerBiome(id, new SmolderWrappedBiome(biome));
+		return registerBiome(new SmolderWrappedBiome(biome));
+	}
+	
+	public static SmolderBiome registerBiome(Identifier id, BiomeDefinition def) {
+		return registerBiome(new SmolderBiome(id, def));
 	}
 
 	/**
 	 * Put biome into registry.
 	 * @param biome - a {@link SmolderBiome} to register.
 	 */
-	public static SmolderBiome registerBiome(Identifier id, SmolderBiome biome) {
+	public static SmolderBiome registerBiome(SmolderBiome biome) {
+		lastID = biome.getID();
 		if (biome.getWeight() > 0) {
-			register(id, biome);
+			register(biome);
 			if (OVERRIDE || !BIOMES.contains(biome)) {
 				BIOMES.add(biome);
 				weight = biome.addWeight(weight);
@@ -64,8 +82,8 @@ public final class SmolderBiomeRegistry {
 	 * @param parent - a {@link SmolderBiome} that is parent of it.
 	 * @return edge {@link SmolderBiome}.
 	 */
-	public static SmolderBiome registerEdgeBiome(Identifier id, SmolderBiome edge, SmolderBiome parent) {
-		register(id, edge);
+	public static SmolderBiome registerEdgeBiome(SmolderBiome edge, SmolderBiome parent) {
+		register(edge);
 		if (OVERRIDE || !EDGES.containsKey(parent)) {
 			EDGES.put(parent, edge);
 			PARENTS.put(edge, parent);
@@ -79,9 +97,9 @@ public final class SmolderBiomeRegistry {
 	 * @param parent - a {@link SmolderBiome} that is parent of it.
 	 * @return {@link SmolderBiome} sub-biome.
 	 */
-	public static SmolderBiome registerSubBiome(Identifier id, SmolderBiome subbiome, SmolderBiome parent) {
+	public static SmolderBiome registerSubBiome(SmolderBiome subbiome, SmolderBiome parent) {
 		if (subbiome.getWeight() > 0) {
-			register(id, subbiome);
+			register(subbiome);
 			List<SmolderBiome> subbiomes = SUBBIOMES.get(parent);
 			if (subbiomes == null) {
 				subbiomes = new ArrayList<SmolderBiome>();
@@ -132,10 +150,14 @@ public final class SmolderBiomeRegistry {
 		return SUBBIOMES.get(biome);
 	}
 	
-	private static void register(Identifier id, SmolderBiome biome) {
+	private static void register(SmolderBiome biome) {
 		if (!(biome instanceof SmolderWrappedBiome)) {
-			Registry.register(Registry.BIOME, id, biome);
+			Registry.register(BuiltinRegistries.BIOME, biome.getID(), biome.getBiome());
 		}
+		Optional<RegistryKey<Biome>> optional = BuiltinRegistries.BIOME.getKey(biome.getBiome());
+		RegistryKey<Biome> key = optional.isPresent() ? optional.get() : RegistryKey.of(Registry.BIOME_KEY, biome.getID());
+		LINKS.put(key, biome);
+		KEYS.put(biome, key);
 	}
 	
 	/**
@@ -186,6 +208,16 @@ public final class SmolderBiomeRegistry {
 	}
 	
 	/**
+	 * Returns {@link SmolderBiome} attached to biome or null
+	 * @param biome
+	 * @return
+	 */
+	public static SmolderBiome getFromBiome(Biome biome) {
+		Optional<RegistryKey<Biome>> optional = BuiltinRegistries.BIOME.getKey(biome);
+		return optional.isPresent() ? LINKS.get(optional.get()) : null;
+	}
+	
+	/**
 	 * Check if biome is same (is itself or sub-biome with equal parent)
 	 * @param source - {@link SmolderBiome}, biome itself;
 	 * @param compare - {@link SmolderBiome}, comparating biome.
@@ -199,6 +231,10 @@ public final class SmolderBiomeRegistry {
 	
 	public static boolean hasSubBiomes(SmolderBiome biome) {
 		return SUBBIOMES.get(biome) != null;
+	}
+	
+	public static RegistryKey<Biome> getBiomeKey(SmolderBiome biome) {
+		return KEYS.get(biome);
 	}
 	
 	public static boolean hasBiomeAsParent(SmolderBiome biome, SmolderBiome parent) {
@@ -216,7 +252,7 @@ public final class SmolderBiomeRegistry {
 		private final Biome biome;
 		
 		public SmolderWrappedBiome(Biome biome) {
-			super(Registry.BIOME.getId(biome), new SmolderBiomeSettings(biome));
+			super(BuiltinRegistries.BIOME.getId(biome), new BiomeDefinition());
 			this.biome = biome;
 		}
 		

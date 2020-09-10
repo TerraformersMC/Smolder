@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "smolder",
+  "id": "smoldertest",
   "version": "${version}",
-  "name": "Smolder",
-  "description": "Makes Nether Generation more mod compatible and improves biome generation.",
+  "name": "Smolder Test",
+  "description": "For testing smolder lib",
   "authors": [
     "TerraformersMC",
     "paulevs"
@@ -13,14 +13,14 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.terraformersmc.smolder.Smolder"
+      "com.terraformersmc.smoldertest.BiomeTesting"
     ]
   },
   "mixins": [
-    "smolder.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.9.3+build.207",
+    "smolder": "*",
+	"fabricloader": ">=0.9.3+build.207",
     "minecraft": ">=1.16.2"
   }
 }
